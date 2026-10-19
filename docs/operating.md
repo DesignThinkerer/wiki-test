@@ -6,7 +6,16 @@
 
 Your worker is deployed from your copy of this repository, which this one keeps changing.
 
-To take an update: on GitHub, *Sync fork* on your fork (or `git pull` from this repository, added as a remote, for a copy made from the template or by the Deploy to Cloudflare button, which is a repository of its own, not a fork); Workers Builds redeploys, and the next admin page load rebuilds the page.
+To take an update: on GitHub, *Sync fork* on your fork; Workers Builds redeploys, and the next admin page load rebuilds the page.
+
+**The button's copy** has no *Sync fork*: it isn't a fork but an import, one commit by Cloudflare's bot with the files as they were that day, the CI workflow left out and your project's names written into `wrangler.toml` and `package.json`, so a plain `git pull` refuses to merge it with this repository ([design 2.30](design.md#230-the-deploy-to-cloudflare-button-three-files-the-variables-kept-out-of-them)). The update is one command, in a clone of your copy on your machine, with git and Node 22 installed:
+
+```bash
+node tools/update.mjs
+git push
+```
+
+The script fetches this repository and merges its `main` into your copy: the first time by finding the commit your copy was taken from, so that the merge is an ordinary one, then as plain merges. Your names stay in `wrangler.toml` and `package.json`, which matters: this repository's file names the worker `wiki-admin`, the bucket `wiki` and the queue `wiki-backup`, and Workers Builds would bind your copy to a bucket and a queue of those names (the worker's name it corrects by itself). The CI workflow stays out, as the import left it. A change you made to a file this repository also changed is merged like any other, and a real conflict is left to you, the script saying which file and how to finish or undo the merge. Nothing is pushed: the `git push` is the deploy. A copy made before the script existed fetches it once, `git fetch https://github.com/DesignThinkerer/tiddlywiki-cloudflare main && git checkout FETCH_HEAD -- tools/update.mjs`, then runs the command above.
 
 Nothing in the repository holds your values (`wrangler.toml` is deployed as it is, the settings live in the dashboard, [setup 2.5](setup.md#25-the-worker)), so an update never conflicts with them. [CHANGELOG.md](../CHANGELOG.md) lists, for each change, anything to do by hand — a new setting, a new zone rule; unless it says so, nothing is.
 
@@ -131,9 +140,9 @@ Nothing is lost in between: every change is kept on this device, as when offline
 
 ## 3.15 Checking the setup
 
-Control Panel → Saving → Cloudflare → *Check the setup* asks the worker to look at each piece and lists what it found, one line each, a missing or wrong one saying what was found and naming the section of the setup guide that fixes it, as a link.
+Control Panel → Saving → Cloudflare → *Check the setup* asks the worker to look at each piece and lists what it found, one line each, a missing or wrong one saying what was found, then the one thing to do — where in the dashboard, which setting, which rule, in the setup guide's words with your addresses filled in — and naming the section of the setup guide with the full steps, as a link.
 
-The pieces: Access protecting the admin site; the public site answering at `PUBLIC_WIKI_URL` with the page (the rewrite rule; an earlier build of the page, Cloudflare's cached copy, passes and is named), allowing the admin site to read tiddlers from it and to keep the core and plugin files for offline use (the CORS rule, each of its two paths checked), and cached (the cache rules, optional: reported, never a failure); backups set up, GitHub accepting the token for the repository and its branch, and the backup queue bound; purges allowed, tested by purging the public site's `status` file (optional, like the zone settings); and, in this browser, the service worker in place with the core file kept, so the wiki opens offline. A private wiki's public-site lines say there's nothing to check.
+The pieces: Access protecting the admin site; the public site answering at `PUBLIC_WIKI_URL` with the page (the rewrite rule; an earlier build of the page, Cloudflare's cached copy, passes and is named), allowing the admin site to read tiddlers from it and to keep the core and plugin files for offline use (the CORS rule, each of its two paths checked), and cached (the cache rules, optional: reported, never a failure); backups set up, GitHub accepting the token for the repository and its branch, and the backup queue bound; purges allowed, tested by purging the public site's `status` file (optional, like the zone settings); and, in this browser, the service worker in place with the core file kept, so the wiki opens offline. A private wiki's public-site lines each name the piece they stand for (the site, the rewrite rule, the CORS rule's two paths, the cache rules) and say there's nothing to check. When the public site doesn't answer, its line says what to do, and the four lines about its rules say they weren't checked, each by name.
 
 It runs only when you click — one request to the worker, which makes a few of its own to the public site, GitHub and Cloudflare — so it costs nothing at page load. Nothing says these things otherwise: the page's own requests work without the CORS header, and a missing rewrite rule shows only to visitors.
 
